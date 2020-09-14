@@ -34,7 +34,7 @@ def get_headers():
 
 def create_url(page_number):
 
-    url = 'https://www.zillow.com/manhattan-new-york-ny/?searchQueryState={"pagination":{"currentPage":%d},"mapBounds":{"west":-75.27962761311436,"east":-73.38448601155186,"south":40.370587973413784,"north":40.922827615664026},"mapZoom":9,"regionSelection":[{"regionId":12530,"regionType":17}],"isMapVisible":true,"filterState":{},"isListVisible":true}' % int(page_number)
+    url = 'https://www.zillow.com/manhattan-new-york-ny/?searchQueryState={"pagination":{"currentPage":%d},"mapBounds":{"west":-75.27962761311436,"east":-73.38448601155186,"south":40.370587973413784,"north":40.922827615664026},"mapZoom":9,"regionSelection":[{"regionId":12530,"regionType":17}],"isMapVisible":true,"filterState":{"price":{"min":200000,"max":700000},"mp":{"min":681,"max":2384}},"isListVisible":true}' % int(page_number)
     print(url)
     return url
 
