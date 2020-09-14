@@ -3,7 +3,17 @@ import requests
 import unicodecsv as csv
 import argparse
 import json
+from urllib.request import Request, urlopen
+from selenium.webdriver.chrome.options import Options
+from fake_useragent import UserAgent
+import time
+from random import randint
+from lxml.html import fromstring
+from itertools import cycle
+import traceback
 
+options = Options()
+ua = UserAgent()
 
 def clean(text):
     if text:
@@ -18,19 +28,13 @@ def get_headers():
                'accept-language': 'en-GB,en;q=0.8,en-US;q=0.6,ml;q=0.4',
                'cache-control': 'max-age=0',
                'upgrade-insecure-requests': '1',
-               'user-agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/74.0.3729.131 Safari/537.36'}
+               'user-agent': ua['google chrome']}
     return headers
 
 
-def create_url(zipcode, filter):
-    # Creating Zillow URL based on the filter.
+def create_url(page_number):
 
-    if filter == "newest":
-        url = "https://www.zillow.com/homes/for_sale/{0}/0_singlestory/days_sort".format(zipcode)
-    elif filter == "cheapest":
-        url = "https://www.zillow.com/homes/for_sale/{0}/0_singlestory/pricea_sort/".format(zipcode)
-    else:
-        url = "https://www.zillow.com/homes/for_sale/{0}_rb/?fromHomePage=true&shouldFireSellPageImplicitClaimGA=false&fromHomePageTab=buy".format(zipcode)
+    url = 'https://www.zillow.com/manhattan-new-york-ny/?searchQueryState={"pagination":{"currentPage":%d},"mapBounds":{"west":-75.27962761311436,"east":-73.38448601155186,"south":40.370587973413784,"north":40.922827615664026},"mapZoom":9,"regionSelection":[{"regionId":12530,"regionType":17}],"isMapVisible":true,"filterState":{},"isListVisible":true}' % int(page_number)
     print(url)
     return url
 
@@ -42,10 +46,10 @@ def save_to_file(response):
         fp.write(response.text)
 
 
-def write_data_to_csv(data):
+def write_data_to_csv(data, page_number):
     # saving scraped data to csv.
 
-    with open("properties-%s.csv" % (zipcode), 'wb') as csvfile:
+    with open("properties-nyc-%s.csv" % (page_number), 'wb') as csvfile:
         fieldnames = ['title', 'address', 'city', 'state', 'postal_code', 'price', 'facts and features', 'real estate provider', 'url']
         writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
         writer.writeheader()
@@ -57,15 +61,19 @@ def get_response(url):
     # Getting response from zillow.com.
 
     for i in range(5):
-        response = requests.get(url, headers=get_headers())
-        print("status code received:", response.status_code)
-        if response.status_code != 200:
-            # saving response to file for debugging purpose.
-            save_to_file(response)
-            continue
-        else:
-            save_to_file(response)
-            return response
+        print("Request #%d"%i)
+        try:
+            response = requests.get(url)
+            print("status code received:", response.status_code)
+            if response.status_code != 200:
+                # saving response to file for debugging purpose.
+                save_to_file(response)
+                continue
+            else:
+                save_to_file(response)
+                return response
+        except:
+            print("Skipping. Connnection error")
     return None
 
 def get_data_from_json(raw_json_data):
@@ -114,15 +122,22 @@ def get_data_from_json(raw_json_data):
         return None
 
 
-def parse(zipcode, filter=None):
-    url = create_url(zipcode, filter)
+def parse(page_number):
+    url = create_url(page_number)
     response = get_response(url)
 
     if not response:
         print("Failed to fetch the page, please check `response.html` to see the response received from zillow.com.")
         return None
 
-    parser = html.fromstring(response.text)
+    # These two new lines are added
+    req = Request(url, headers={'User-Agent': 'Mozilla/5.0'})
+    webpage = urlopen(req).read()
+
+    #replace the parser to take input added above
+    #parser = html.fromstring(response.text)
+    parser = html.fromstring(webpage)
+
     search_results = parser.xpath("//div[@id='search-results']//article")
 
     if not search_results:
@@ -171,9 +186,8 @@ def parse(zipcode, filter=None):
 
 if __name__ == "__main__":
     # Reading arguments
-
     argparser = argparse.ArgumentParser(formatter_class=argparse.RawTextHelpFormatter)
-    argparser.add_argument('zipcode', help='')
+    argparser.add_argument('page_number', help='')
     sortorder_help = """
     available sort orders are :
     newest : Latest property details,
@@ -182,10 +196,13 @@ if __name__ == "__main__":
 
     argparser.add_argument('sort', nargs='?', help=sortorder_help, default='Homes For You')
     args = argparser.parse_args()
-    zipcode = args.zipcode
-    sort = args.sort
-    print ("Fetching data for %s" % (zipcode))
-    scraped_data = parse(zipcode, sort)
-    if scraped_data:
-        print ("Writing data to output file")
-        write_data_to_csv(scraped_data)
+    page_number = args.page_number
+    #sort = args.sort
+    
+    for i in range(1,26):
+        time.sleep(randint(1,30))
+        print ("Fetching data for page %s" % (i))
+        scraped_data = parse(i)
+        if scraped_data:
+            print ("Writing data to output file")
+            write_data_to_csv(scraped_data, i)
