@@ -12,6 +12,7 @@ from lxml.html import fromstring
 from itertools import cycle
 import traceback
 import os
+from datetime import datetime
 
 options = Options()
 ua = UserAgent()
@@ -48,13 +49,14 @@ def save_to_file(response):
 
 
 def write_data_to_csv(data, page_number):
+    todays_date = datetime.now().strftime("%Y%m%d")
     # saving scraped data to csv.
     try:
         os.mkdir("./data/")
     except OSError as e:
         print("Directory exists")
 
-    with open("./data/" + "properties-nyc-%s.csv" % (page_number), 'wb') as csvfile:
+    with open("./data/%s" % (todays_date) + "properties-nyc-%s.csv" % (page_number), 'wb') as csvfile:
         fieldnames = ['title', 'address', 'city', 'state', 'postal_code', 'price', 'facts and features', 'real estate provider', 'url']
         writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
         writer.writeheader()
@@ -95,8 +97,8 @@ def get_data_from_json(raw_json_data):
         #print(json.dumps(search_results, indent=2))
 
         for properties in search_results:
-            address = properties.get('addressWithZip')
             property_info = properties.get('hdpData', {}).get('homeInfo')
+            address = property_info.get('streetAddress')
             city = property_info.get('city')
             state = property_info.get('state')
             postal_code = property_info.get('zipcode')
