@@ -11,11 +11,10 @@ from random import randint
 from lxml.html import fromstring
 from itertools import cycle
 import traceback
-from datetime import datetime
+import os
 
 options = Options()
 ua = UserAgent()
-todays_date = datetime.now().strftime("%Y%m%d")
 
 def clean(text):
     if text:
@@ -34,9 +33,9 @@ def get_headers():
     return headers
 
 
-def create_url(page_number, todays_date):
+def create_url(page_number):
 
-    url = 'https://www.zillow.com/manhattan-new-york-ny/?searchQueryState={"pagination":{"currentPage":%d},"mapBounds":{"west":-75.27962761311436,"east":-73.38448601155186,"south":40.370587973413784,"north":40.922827615664026},"mapZoom":9,"regionSelection":[{"regionId":12530,"regionType":17}],"isMapVisible":true,"filterState":{"price":{"min":1500000,"max":2000000},"mp":{"min":681,"max":2384}},"isListVisible":true}' % (int(page_number), int(todays_date))
+    url = 'https://www.zillow.com/manhattan-new-york-ny/?searchQueryState={"pagination":{"currentPage":%d},"mapBounds":{"west":-75.27962761311436,"east":-73.38448601155186,"south":40.370587973413784,"north":40.922827615664026},"mapZoom":9,"regionSelection":[{"regionId":12530,"regionType":17}],"isMapVisible":true,"filterState":{"price":{"min":1500000,"max":2000000},"mp":{"min":681,"max":2384},"beds":{"min":2}},"isListVisible":true}' % int(page_number)
     print(url)
     return url
 
@@ -48,10 +47,14 @@ def save_to_file(response):
         fp.write(response.text)
 
 
-def write_data_to_csv(data, page_number, todays_date):
+def write_data_to_csv(data, page_number):
     # saving scraped data to csv.
+    try:
+        os.mkdir("./data/")
+    except OSError as e:
+        print("Directory exists")
 
-    with open("properties-nyc-%s.csv" % (page_number, todays_date), 'wb') as csvfile:
+    with open("./data/" + "properties-nyc-%s.csv" % (page_number), 'wb') as csvfile:
         fieldnames = ['title', 'address', 'city', 'state', 'postal_code', 'price', 'facts and features', 'real estate provider', 'url']
         writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
         writer.writeheader()
