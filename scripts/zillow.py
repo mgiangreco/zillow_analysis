@@ -13,7 +13,6 @@ from itertools import cycle
 import traceback
 import os
 from datetime import datetime
-import re 
 
 options = Options()
 ua = UserAgent()
