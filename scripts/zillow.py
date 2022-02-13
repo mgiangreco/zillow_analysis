@@ -13,6 +13,7 @@ from itertools import cycle
 import traceback
 import os
 from datetime import datetime
+import re 
 
 options = Options()
 ua = UserAgent()
@@ -48,7 +49,7 @@ def save_to_file(response):
         fp.write(response.text)
 
 
-def write_data_to_csv(data, page_number):
+def write_data_to_csv(data):
     todays_date = datetime.now().strftime("%Y%m%d")
     # saving scraped data to csv.
     try:
@@ -56,10 +57,15 @@ def write_data_to_csv(data, page_number):
     except OSError as e:
         print("Directory exists")
 
-    with open("./data/%s" % (todays_date) + "properties-nyc-%s.csv" % (page_number), 'wb') as csvfile:
-        fieldnames = ['title', 'address', 'city', 'state', 'postal_code', 'price', 'facts and features', 'real estate provider', 'url']
+    filename = "./data/%s" % (todays_date) + "properties-nyc.csv"
+
+    with open(filename, 'ab') as csvfile:
+        fieldnames = ['zpid', 'title', 'address', 'city', 'state', 'postal_code', 'price', 'bedrooms', 'bathrooms', 'area', 'real estate provider', 'url']
         writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
-        writer.writeheader()
+
+        if os.stat(filename).st_size == 0:
+            writer.writeheader()  # file doesn't exist yet, write a header
+
         for row in data:
             writer.writerow(row)
 
@@ -98,6 +104,7 @@ def get_data_from_json(raw_json_data):
 
         for properties in search_results:
             property_info = properties.get('hdpData', {}).get('homeInfo')
+            zpid = property_info.get('zpid')
             address = property_info.get('streetAddress')
             city = property_info.get('city')
             state = property_info.get('state')
@@ -106,17 +113,19 @@ def get_data_from_json(raw_json_data):
             bedrooms = properties.get('beds')
             bathrooms = properties.get('baths')
             area = properties.get('area')
-            info = f'{bedrooms} bds, {bathrooms} ba ,{area} sqft'
             broker = properties.get('brokerName')
             property_url = properties.get('detailUrl')
             title = properties.get('statusText')
 
-            data = {'address': address,
+            data = {'zpid': zpid,
+                    'address': address,
                     'city': city,
                     'state': state,
                     'postal_code': postal_code,
                     'price': price,
-                    'facts and features': info,
+                    'bedrooms': bedrooms,
+                    'bathrooms': bathrooms,
+                    'area': area,
                     'real estate provider': broker,
                     'url': property_url,
                     'title': title}
@@ -156,6 +165,7 @@ def parse(page_number):
     print("parsing from html page")
     properties_list = []
     for properties in search_results:
+        raw_zpid = properties.xpath(".//span[@itemprop='zpid']//span[@itemprop='zpid']//text()")
         raw_address = properties.xpath(".//span[@itemprop='address']//span[@itemprop='streetAddress']//text()")
         raw_city = properties.xpath(".//span[@itemprop='address']//span[@itemprop='addressLocality']//text()")
         raw_state = properties.xpath(".//span[@itemprop='address']//span[@itemprop='addressRegion']//text()")
@@ -166,6 +176,7 @@ def parse(page_number):
         url = properties.xpath(".//a[contains(@class,'overlay-link')]/@href")
         raw_title = properties.xpath(".//h4//text()")
 
+        zpid = clean(raw_zpid)
         address = clean(raw_address)
         city = clean(raw_city)
         state = clean(raw_state)
@@ -177,7 +188,8 @@ def parse(page_number):
         property_url = "https://www.zillow.com" + url[0] if url else None
         is_forsale = properties.xpath('.//span[@class="zsg-icon-for-sale"]')
 
-        properties = {'address': address,
+        properties = {'zpid': zpid,
+                      'address': address,
                       'city': city,
                       'state': state,
                       'postal_code': postal_code,
@@ -212,4 +224,4 @@ if __name__ == "__main__":
         scraped_data = parse(i)
         if scraped_data:
             print ("Writing data to output file")
-            write_data_to_csv(scraped_data, i)
+            write_data_to_csv(scraped_data)
