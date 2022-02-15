@@ -13,6 +13,8 @@ from itertools import cycle
 import traceback
 import os
 from datetime import datetime
+from re import sub
+from decimal import Decimal
 
 options = Options()
 ua = UserAgent()
@@ -66,6 +68,9 @@ def write_data_to_csv(data):
             writer.writeheader()  # file doesn't exist yet, write a header
 
         for row in data:
+            if Decimal(sub(r'[^\d.]', '', row['price'])) < 1500000 or Decimal(sub(r'[^\d.]', '', row['price'])) > 2000000:
+                print("outside price bounds, stopping...")
+                break
             writer.writerow(row)
 
 
@@ -205,17 +210,17 @@ def parse(page_number):
 if __name__ == "__main__":
     # Reading arguments
     argparser = argparse.ArgumentParser(formatter_class=argparse.RawTextHelpFormatter)
-    argparser.add_argument('page_number', help='')
-    sortorder_help = """
-    available sort orders are :
-    newest : Latest property details,
-    cheapest : Properties with cheapest price
-    """
+    # argparser.add_argument('page_number', help='')
+    # sortorder_help = """
+    # available sort orders are :
+    # newest : Latest property details,
+    # cheapest : Properties with cheapest price
+    # """
 
-    argparser.add_argument('sort', nargs='?', help=sortorder_help, default='Homes For You')
-    args = argparser.parse_args()
-    page_number = args.page_number
-    #sort = args.sort
+    # argparser.add_argument('sort', nargs='?', help=sortorder_help, default='Homes For You')
+    # args = argparser.parse_args()
+    # page_number = args.page_number
+    # sort = args.sort
     
     for i in range(1,26):
         time.sleep(randint(1,30))
